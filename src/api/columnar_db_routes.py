@@ -32,3 +32,12 @@ def run_analytics(query_type: str):
 def get_stats():
     """Get table statistics"""
     return columnar_db.get_table_stats()
+
+@router.get("/analytics/running-total")
+def get_running_total():
+    """Get running total by region (window function)"""
+    try:
+        result = columnar_db.running_total_by_region()
+        return result.to_dict('records')
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

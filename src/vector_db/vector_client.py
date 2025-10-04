@@ -1,6 +1,7 @@
 import chromadb
 from sentence_transformers import SentenceTransformer
 from typing import List, Dict, Optional
+from utils.benchmarking import benchmark
 
 
 class VectorDBClient:
@@ -20,6 +21,7 @@ class VectorDBClient:
         )
         print(f"✅ Vector DB initialized with collection '{collection_name}'")
     
+    @benchmark("vector_db", "add_document")
     def add_document(self, doc_id: str, text: str, metadata: Optional[Dict] = None):
         """Add a document to the vector database"""
         # Convert text to vector using the embedding model
@@ -35,6 +37,7 @@ class VectorDBClient:
         print(f"✅ Added document '{doc_id}' to vector DB")
         return doc_id
     
+    @benchmark("vector_db", "search")
     def search_similar(self, query: str, top_k: int = 5):
         """Search for similar documents"""
         # Convert query to vector
@@ -53,6 +56,26 @@ class VectorDBClient:
         """Get statistics about the collection"""
         count = self.collection.count()
         return {"total_documents": count}
+    
+    @benchmark("vector_db", "search")
+    def search_similar(self, query: str, top_k: int = 5, metadata_filter: dict = None):
+        """Search for similar documents with optional metadata filtering"""
+        query_embedding = self.model.encode(query).tolist()
+        
+        # Build query parameters
+        query_params = {
+            "query_embeddings": [query_embedding],
+            "n_results": top_k
+        }
+        
+        # Add metadata filter if provided
+        if metadata_filter:
+            query_params["where"] = metadata_filter
+        
+        results = self.collection.query(**query_params)
+        
+        print(f"🔍 Found {len(results['documents'][0])} similar documents")
+        return results
 
 
 # Test it out

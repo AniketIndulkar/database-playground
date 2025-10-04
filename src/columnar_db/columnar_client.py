@@ -1,7 +1,7 @@
 import duckdb
 import pandas as pd
 from typing import List, Dict
-
+from utils.benchmarking import benchmark
 
 class ColumnarDBClient:
     """Client for interacting with DuckDB columnar database"""
@@ -25,6 +25,7 @@ class ColumnarDBClient:
         """)
         print("✅ Created 'sales' table")
     
+    @benchmark("columnar_db", "insert")
     def insert_sample_data(self):
         """Insert sample sales data"""
         self.conn.execute("""
@@ -40,6 +41,7 @@ class ColumnarDBClient:
         """)
         print("✅ Inserted sample sales data")
     
+    @benchmark("columnar_db", "analytics_query")
     def analytics_query(self, query_type: str) -> pd.DataFrame:
         """Run different types of analytics queries"""
         
@@ -93,6 +95,25 @@ class ColumnarDBClient:
     def close(self):
         """Close the database connection"""
         self.conn.close()
+    
+    def running_total_by_region(self) -> pd.DataFrame:
+        """Calculate running total of revenue by region using window functions"""
+        result = self.conn.execute("""
+            SELECT 
+                region,
+                order_date,
+                quantity * price as daily_revenue,
+                SUM(quantity * price) OVER (
+                    PARTITION BY region 
+                    ORDER BY order_date
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                ) as running_total
+            FROM sales
+            ORDER BY region, order_date
+        """).fetchdf()
+    
+        print("📊 Calculated running totals by region")
+        return result
 
 
 # Test it out

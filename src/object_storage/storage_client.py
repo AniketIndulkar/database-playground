@@ -2,6 +2,9 @@ from minio import Minio
 from minio.error import S3Error
 import os
 from dotenv import load_dotenv
+from datetime import datetime
+
+from src.utils.benchmarking import benchmark
 
 # Load environment variables
 load_dotenv()
@@ -78,6 +81,44 @@ class ObjectStorageClient:
         except S3Error as e:
             print(f"❌ Error listing files: {e}")
             return []
+    
+
+    @benchmark("object_storage", "upload_versioned")
+    def upload_file_versioned(self, file_path: str, base_name: str):
+        """Upload a file with timestamp versioning"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        name, ext = os.path.splitext(base_name)
+        versioned_name = f"{name}_{timestamp}{ext}"
+        
+        try:
+            self.client.fput_object(
+                bucket_name=self.bucket_name,
+                object_name=versioned_name,
+                file_path=file_path
+            )
+            print(f"✅ Uploaded '{file_path}' as '{versioned_name}' (versioned)")
+            return versioned_name
+        except S3Error as e:
+            print(f"❌ Error uploading file: {e}")
+            return None
+
+    def list_versions(self, base_name: str):
+        """List all versions of a file"""
+        name_without_ext = os.path.splitext(base_name)[0]
+        
+        objects = self.client.list_objects(self.bucket_name)
+        versions = []
+        
+        for obj in objects:
+            if obj.object_name.startswith(name_without_ext):
+                versions.append({
+                    "name": obj.object_name,
+                    "size": obj.size,
+                    "last_modified": obj.last_modified
+                })
+        
+        return versions
+    
 
 if __name__ == "__main__":
     storage = ObjectStorageClient()

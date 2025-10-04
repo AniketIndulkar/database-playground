@@ -63,3 +63,15 @@ def clear_database():
         return {"success": True, "message": "Database cleared"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/shortest-path/{user1_id}/{user2_id}")
+def find_shortest_path(user1_id: str, user2_id: str):
+    """Find shortest path between two users"""
+    try:
+        result = graph_db.find_shortest_path(user1_id, user2_id)
+        if result:
+            return result
+        else:
+            raise HTTPException(status_code=404, detail="No path found between users")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

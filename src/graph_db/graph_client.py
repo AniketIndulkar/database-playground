@@ -1,6 +1,7 @@
 from neo4j import GraphDatabase
 import os
 from dotenv import load_dotenv
+from utils.benchmarking import benchmark
 
 load_dotenv()
 
@@ -23,6 +24,7 @@ class GraphDBClient:
         """Close the database connection"""
         self.driver.close()
     
+    @benchmark("graph_db", "create_user")
     def create_user(self, user_id: str, name: str, age: int):
         """Create a user node"""
         with self.driver.session() as session:
@@ -33,6 +35,7 @@ class GraphDBClient:
             print(f"✅ Created user: {name}")
             return result.single()[0]
     
+    @benchmark("graph_db", "create_friendship")
     def create_friendship(self, user1_id: str, user2_id: str):
         """Create a friendship relationship between two users"""
         with self.driver.session() as session:
@@ -48,6 +51,7 @@ class GraphDBClient:
             print(f"✅ Created friendship: {user1_id} -> {user2_id}")
             return result.single()[0]
     
+    @benchmark("graph_db", "find_friends")
     def find_friends(self, user_id: str):
         """Find all direct friends of a user"""
         with self.driver.session() as session:
@@ -63,6 +67,7 @@ class GraphDBClient:
             print(f"🔍 Found {len(friends)} friends")
             return friends
     
+    @benchmark("graph_db", "find_friends_of_friends")
     def find_friends_of_friends(self, user_id: str):
         """Find friends of friends (2 degrees away)"""
         with self.driver.session() as session:
@@ -85,6 +90,34 @@ class GraphDBClient:
         with self.driver.session() as session:
             session.run("MATCH (n) DETACH DELETE n")
             print("🗑️  Database cleared")
+    
+    @benchmark("graph_db", "shortest_path")
+    def find_shortest_path(self, user1_id: str, user2_id: str):
+        """Find shortest path between two users"""
+        with self.driver.session() as session:
+            result = session.run(
+                """
+                MATCH path = shortestPath(
+                    (u1:User {id: $user1_id})-[:FRIENDS_WITH*]-(u2:User {id: $user2_id})
+                )
+                RETURN [node in nodes(path) | node.name] as path_names,
+                    length(path) as degrees_of_separation
+                """,
+                user1_id=user1_id, user2_id=user2_id
+            )
+            
+            record = result.single()
+            if record:
+                path = record["path_names"]
+                degrees = record["degrees_of_separation"]
+                print(f"🔍 Path found: {' -> '.join(path)} ({degrees} degrees)")
+                return {
+                    "path": path,
+                    "degrees_of_separation": degrees
+                }
+            else:
+                print("❌ No path found")
+                return None
 
 
 # Test it out

@@ -45,3 +45,21 @@ def search_similar(query: SearchQuery):
 def get_stats():
     """Get collection statistics"""
     return vector_db.get_collection_stats()
+
+class SearchQuery(BaseModel):
+    query: str
+    top_k: int = 5
+    metadata_filter: dict = None
+
+@router.post("/search")
+def search_similar(query: SearchQuery):
+    """Search for similar documents with optional metadata filtering"""
+    try:
+        results = vector_db.search_similar(query.query, query.top_k, query.metadata_filter)
+        return {
+            "documents": results['documents'][0],
+            "distances": results['distances'][0],
+            "metadatas": results['metadatas'][0]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
